@@ -23,7 +23,7 @@ echo "import ${SRCURL} repos to ${DISTURL}"
 
 cleanup_remote() {
 	#remove branch
-	BRANCHS=`git branch | grep -e "^  ${SRCTAG}/"` 
+	BRANCHS=`git branch | grep "${SRCTAG}/" | sed -e "s/ //g"`
 	for branch in ${BRANCHS}
 	do
 		git branch -D ${branch}
@@ -42,7 +42,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-SRCBRANCH=`git branch -r | grep ${SRCTAG}`
+SRCBRANCH=`git branch -r | grep "${SRCTAG}/"`
 #Get tags
 #SRCTAGS=`git ls-remote --tags  src | awk -F" " '{print $2}' | awk -F"/" '{print $3}'`
 
@@ -63,13 +63,14 @@ git push ${DISTTAG} ${SRCTAG}/master:master
 # push other branches
 for branch in ${SRCBRANCH}
 do
-	realbranch=`echo ${branch} | sed -e "s@^  ${SRCTAG}/@@g"`
+	realbranch=`echo ${branch} | sed -e "s@${SRCTAG}/@@g" -e "s/ //g"`
 	if [ "$realbranch" == "master" ]; then
 		continue
 	fi
 	#create branch
 	git branch ${branch} ${branch}
 	#push to new repos
+	echo "git push ${DISTTAG} ${branch}:${realbranch}"
 	git push ${DISTTAG} ${branch}:${realbranch}
 done
 
