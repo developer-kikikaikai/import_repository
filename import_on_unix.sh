@@ -17,25 +17,52 @@ DISTTAG=dist
 SRCBASE=`cat servers.json | jq -r '.src'`
 DISTBASE=`cat servers.json | jq -r '.dist'`
 
-echo "import ${SRCBASE}/${SRCREPOS} repos to ${DISTBASE}/${DISTREPOS}"
-exit 1
+SRCURL=${SRCBASE}/${SRCREPOS}
+DISTURL=${DISTBASE}/${DISTREPOS}
+echo "import ${SRCURL} repos to ${DISTURL}"
 
-#Add remote repos of base
-git remote add ${SRCTAG} 
+cleanup_remote() {
+	#remove branch
+	BRANCHS=`git branch | grep -e "^  ${SRCTAG}/"` 
+	for branch in ${BRANCHS}
+	do
+		git branch -D ${branch}
+	done
+	#remove remote tags
+	git remote remove ${DISTTAG}
+	git remote remove ${SRCTAG}
+}
 
-#リポジトリのclone
-git clone GitLabのリポジトリ
-cd GitLabのリポジトリ
+# Add remote repos of src
+git remote add ${SRCTAG} ${SRCURL}
+git fetch ${SRCTAG}
+if [ $? -ne 0 ]; then
+	echo "Failed to fetch, please check ${SRCURL} repos. Failed to fetch"
+	cleanup_remote
+	exit 1
+fi
 
-#GitHubのURLリンクしてpull
-git remote add github GitHubのURL
-git pull github
+SRCBRANCH=`git branch -r | grep ${SRCTAG}`
+#SRCTAGS=`git ls-remote --tags  src | awk -F" " '{print $2}' | awk -F"/" '{print $3}'`
 
-#GitHubコードのブランチを作成
-git branch github github/master 
+# Add remote repos of dist
+git remote add ${DISTTAG} ${DISTURL}
+## check existing repos
+git fetch ${DISTTAG}
+if [ $? -ne 0 ]; then
+	echo "Failed to fetch, please check ${DISTURL} repos. Failed to fetch"
+	cleanup_remote
+	exit 1
+fi
 
-#GitHubマージ
-git merge  github
+for branch in ${SRCBRANCH}
+do
+	realbranch=`echo ${branch} | sed -e "s@^${SRCTAG}/@@g"`
+	#create branch
+	git branch ${branch} ${branch}
+	#push to new repos
+	git push ${DISTTAG} ${branch}:${realbranch}
+done
 
-#push
-git push -u origin master
+echo "Finish to import!! cleanup"
+cleanup_remote
