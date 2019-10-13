@@ -43,6 +43,7 @@ if [ $? -ne 0 ]; then
 fi
 
 SRCBRANCH=`git branch -r | grep ${SRCTAG}`
+#Get tags
 #SRCTAGS=`git ls-remote --tags  src | awk -F" " '{print $2}' | awk -F"/" '{print $3}'`
 
 # Add remote repos of dist
@@ -55,14 +56,25 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# push master first to set default branch
+git branch ${SRCTAG}/master ${SRCTAG}/master
+git push ${DISTTAG} ${SRCTAG}/master:master
+
+# push other branches
 for branch in ${SRCBRANCH}
 do
-	realbranch=`echo ${branch} | sed -e "s@^${SRCTAG}/@@g"`
+	realbranch=`echo ${branch} | sed -e "s@^  ${SRCTAG}/@@g"`
+	if [ "$realbranch" == "master" ]; then
+		continue
+	fi
 	#create branch
 	git branch ${branch} ${branch}
 	#push to new repos
 	git push ${DISTTAG} ${branch}:${realbranch}
 done
+
+# push tags
+git push ${DISTTAG} --tags
 
 echo "Finish to import!! cleanup"
 cleanup_remote
